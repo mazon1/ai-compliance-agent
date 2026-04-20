@@ -48,7 +48,7 @@ with right:
     
     model_name = st.selectbox(
         "Model",
-        options=["gemini-1.5-flash"],
+        options=["gemini-2.5-flash"],
         index=0
     )
     
