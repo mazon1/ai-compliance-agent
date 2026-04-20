@@ -1,5 +1,6 @@
 import json
-from anthropic import Anthropic
+import google.generativeai as genai
+import streamlit as st
 from rules import RULES
 
 SYSTEM_PROMPT = """
@@ -14,12 +15,16 @@ def build_prompt(document_text: str, strict_mode: bool) -> str:
     rules_text = "\n".join(
         [f"- {rule['id']}: {rule['title']} | {rule['requirement']}" for rule in RULES]
     )
+
     strictness = (
         "Be strict about vague language. If the document says things like 'regularly' or 'as needed' where a specific frequency is expected, flag it."
         if strict_mode else
         "Do not over-flag vague wording unless it affects compliance."
     )
+
     return f"""
+{SYSTEM_PROMPT}
+
 Review the following safety procedure for compliance against the provided rules.
 
 RULES:
@@ -67,21 +72,37 @@ Return valid JSON in this exact shape:
 }}
 """
 
-def analyze_document(document_text: str, api_key: str, model_name: str, strict_mode: bool, source_name: str) -> dict:
-    client = Anthropic(api_key=api_key)
+
+def analyze_document(document_text: str, model_name: str, strict_mode: bool, source_name: str) -> dict:
+    
+    # 🔑 Configure Gemini
+    genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+    model = genai.GenerativeModel("gemini-2.5-flash")
+
     prompt = build_prompt(document_text, strict_mode)
 
-    response = client.messages.create(
-        model=model_name,
-        max_tokens=1800,
-        system=SYSTEM_PROMPT,
-        messages=[
-            {"role": "user", "content": prompt}
-        ]
-    )
+    try:
+        response = model.generate_content(prompt)
+        raw_text = response.text.strip()
+    except Exception as e:
+        return {
+            "overall_status": "Partially Compliant",
+            "summary": f"Model call failed: {str(e)}",
+            "issues": [
+                {
+                    "title": "Model failure",
+                    "severity": "High",
+                    "why_it_matters": "The AI model did not return a response.",
+                    "recommendation": "Check API key, model config, or retry.",
+                    "evidence": str(e)
+                }
+            ],
+            "strengths": [],
+            "rules_considered": [{"id": r["id"], "title": r["title"]} for r in RULES],
+            "document_name": source_name
+        }
 
-    raw_text = response.content[0].text.strip()
-
+    # 🔍 JSON parsing (keep your strong logic)
     try:
         data = json.loads(raw_text)
     except json.JSONDecodeError:
@@ -106,6 +127,7 @@ def analyze_document(document_text: str, api_key: str, model_name: str, strict_m
                 "rules_considered": [{"id": r["id"], "title": r["title"]} for r in RULES]
             }
 
+    # 📌 Add metadata
     data["document_name"] = source_name
 
     if "rules_considered" not in data or not data["rules_considered"]:
