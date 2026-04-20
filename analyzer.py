@@ -14,13 +14,11 @@ def build_prompt(document_text: str, strict_mode: bool) -> str:
     rules_text = "\n".join(
         [f"- {rule['id']}: {rule['title']} | {rule['requirement']}" for rule in RULES]
     )
-
     strictness = (
         "Be strict about vague language. If the document says things like 'regularly' or 'as needed' where a specific frequency is expected, flag it."
         if strict_mode else
         "Do not over-flag vague wording unless it affects compliance."
     )
-
     return f"""
 Review the following safety procedure for compliance against the provided rules.
 
@@ -76,7 +74,6 @@ def analyze_document(document_text: str, api_key: str, model_name: str, strict_m
     response = client.messages.create(
         model=model_name,
         max_tokens=1800,
-        temperature=0,
         system=SYSTEM_PROMPT,
         messages=[
             {"role": "user", "content": prompt}
@@ -88,7 +85,6 @@ def analyze_document(document_text: str, api_key: str, model_name: str, strict_m
     try:
         data = json.loads(raw_text)
     except json.JSONDecodeError:
-        # safe fallback if model wraps JSON in text
         start = raw_text.find("{")
         end = raw_text.rfind("}")
         if start != -1 and end != -1:
@@ -111,6 +107,8 @@ def analyze_document(document_text: str, api_key: str, model_name: str, strict_m
             }
 
     data["document_name"] = source_name
+
     if "rules_considered" not in data or not data["rules_considered"]:
         data["rules_considered"] = [{"id": r["id"], "title": r["title"]} for r in RULES]
+
     return data
