@@ -1,94 +1,87 @@
 import io
-from fpdf import FPDF
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import mm
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable
 
 def clean_text(text):
     if not isinstance(text, str):
         text = str(text)
-    # Replace smart quotes and common unicode punctuation
     replacements = {
         "\u2018": "'", "\u2019": "'",
         "\u201c": '"', "\u201d": '"',
         "\u2013": "-", "\u2014": "-",
         "\u2026": "...",
+        "&": "&amp;", "<": "&lt;", ">": "&gt;",
     }
     for k, v in replacements.items():
         text = text.replace(k, v)
-    return text.encode("latin-1", "ignore").decode("latin-1")
-
-def section_header(pdf, W, text):
-    pdf.set_font("Arial", style="B", size=12)
-    pdf.cell(W, 8, text, ln=True)
-    pdf.set_font("Arial", size=11)
-    pdf.ln(1)
-
-def labeled_block(pdf, W, label, value):
-    pdf.set_font("Arial", style="B", size=11)
-    pdf.multi_cell(W, 7, clean_text(label))
-    pdf.set_font("Arial", size=11)
-    pdf.multi_cell(W, 7, clean_text(value))
-    pdf.ln(1)
+    return text
 
 def generate_pdf_bytes(result: dict) -> bytes:
-    pdf = FPDF(orientation="P", unit="mm", format="A4")
-    pdf.set_margins(20, 20, 20)
-    pdf.add_page()
-    pdf.set_auto_page_break(auto=True, margin=20)
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        leftMargin=20*mm,
+        rightMargin=20*mm,
+        topMargin=20*mm,
+        bottomMargin=20*mm,
+    )
 
-    W = pdf.w - 40  # 170mm usable width
+    styles = getSampleStyleSheet()
+    story = []
 
-    # -------------------------
+    title_style = ParagraphStyle("Title", parent=styles["Title"], fontSize=16, spaceAfter=6)
+    h2_style = ParagraphStyle("H2", parent=styles["Heading2"], fontSize=12, spaceAfter=4, spaceBefore=10)
+    h3_style = ParagraphStyle("H3", parent=styles["Heading3"], fontSize=11, spaceAfter=2, spaceBefore=6)
+    body_style = ParagraphStyle("Body", parent=styles["Normal"], fontSize=10, spaceAfter=4, leading=14)
+    bullet_style = ParagraphStyle("Bullet", parent=styles["Normal"], fontSize=10, spaceAfter=3, leftIndent=10, leading=14)
+    severity_colors = {"high": colors.HexColor("#c0392b"), "medium": colors.HexColor("#e67e22"), "low": colors.HexColor("#27ae60")}
+
     # HEADER
-    # -------------------------
-    pdf.set_font("Arial", style="B", size=14)
-    pdf.cell(W, 10, "Compliance Report", ln=True)
-    pdf.ln(3)
+    story.append(Paragraph("Compliance Report", title_style))
+    story.append(HRFlowable(width="100%", thickness=1, color=colors.grey))
+    story.append(Spacer(1, 6))
 
-    # -------------------------
     # SUMMARY
-    # -------------------------
-    section_header(pdf, W, "Summary")
-    labeled_block(pdf, W, "Document:", result.get("document_name", ""))
-    labeled_block(pdf, W, "Overall Status:", result.get("overall_status", "Unknown"))
-    labeled_block(pdf, W, "Summary:", result.get("summary", ""))
-    pdf.ln(3)
+    story.append(Paragraph("Summary", h2_style))
+    story.append(Paragraph(f"<b>Document:</b> {clean_text(result.get('document_name',''))}", body_style))
+    story.append(Paragraph(f"<b>Overall Status:</b> {clean_text(result.get('overall_status','Unknown'))}", body_style))
+    story.append(Paragraph(f"<b>Summary:</b> {clean_text(result.get('summary',''))}", body_style))
+    story.append(Spacer(1, 6))
 
-    # -------------------------
-    # ISSUES
-    # -------------------------
-    section_header(pdf, W, "Findings")
+    # FINDINGS
+    story.append(HRFlowable(width="100%", thickness=0.5, color=colors.lightgrey))
+    story.append(Paragraph("Findings", h2_style))
 
     for i, issue in enumerate(result.get("issues", []), start=1):
-        pdf.set_font("Arial", style="B", size=11)
-        pdf.multi_cell(W, 7, clean_text(f"{i}. {issue.get('title', '')}"))
-        pdf.set_font("Arial", size=11)
-        labeled_block(pdf, W, "Severity:", issue.get("severity", ""))
-        labeled_block(pdf, W, "Why it matters:", issue.get("why_it_matters", ""))
-        labeled_block(pdf, W, "Recommendation:", issue.get("recommendation", ""))
-        labeled_block(pdf, W, "Evidence:", issue.get("evidence", "Not found"))
-        pdf.ln(4)
+        sev = issue.get("severity", "")
+        sev_color = severity_colors.get(sev.lower(), colors.black)
+        sev_style = ParagraphStyle("Sev", parent=body_style, textColor=sev_color, fontName="Helvetica-Bold")
 
-    # -------------------------
+        story.append(Paragraph(f"{i}. {clean_text(issue.get('title',''))}", h3_style))
+        story.append(Paragraph(f"Severity: {clean_text(sev)}", sev_style))
+        story.append(Paragraph(f"<b>Why it matters:</b> {clean_text(issue.get('why_it_matters',''))}", body_style))
+        story.append(Paragraph(f"<b>Recommendation:</b> {clean_text(issue.get('recommendation',''))}", body_style))
+        story.append(Paragraph(f"<b>Evidence:</b> <i>{clean_text(issue.get('evidence','Not found'))}</i>", body_style))
+        story.append(Spacer(1, 4))
+
     # STRENGTHS
-    # -------------------------
     if result.get("strengths"):
-        section_header(pdf, W, "What the Document Does Well")
+        story.append(HRFlowable(width="100%", thickness=0.5, color=colors.lightgrey))
+        story.append(Paragraph("What the Document Does Well", h2_style))
         for s in result["strengths"]:
-            pdf.set_font("Arial", size=11)
-            pdf.multi_cell(W, 7, clean_text(f"- {s}"))
-        pdf.ln(3)
+            story.append(Paragraph(f"• {clean_text(s)}", bullet_style))
+        story.append(Spacer(1, 4))
 
-    # -------------------------
     # RULES CONSIDERED
-    # -------------------------
     if result.get("rules_considered"):
-        section_header(pdf, W, "Rules Considered")
+        story.append(HRFlowable(width="100%", thickness=0.5, color=colors.lightgrey))
+        story.append(Paragraph("Rules Considered", h2_style))
         for rule in result["rules_considered"]:
-            pdf.set_font("Arial", size=11)
-            pdf.multi_cell(W, 7, clean_text(f"- {rule.get('id','')}: {rule.get('title','')}"))
+            story.append(Paragraph(f"• <b>{clean_text(rule.get('id',''))}</b>: {clean_text(rule.get('title',''))}", bullet_style))
 
-    # -------------------------
-    # OUTPUT
-    # -------------------------
-    buffer = io.BytesIO()
-    pdf.output(buffer)
+    doc.build(story)
     return buffer.getvalue()
