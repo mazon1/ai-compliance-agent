@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Fire Extinguisher Compliance Checker
 
 A focused AI-powered prototype that reviews a fire extinguisher procedure against a narrow set of OSHA-style requirements and produces an actionable compliance report for a non-technical safety manager.
@@ -101,3 +102,6 @@ Deploy on Streamlit Community Cloud and add:
 - Support document chunking for longer procedures
 - Add evidence highlighting directly in the uploaded document
 - Add reviewer approval / sign-off workflow for human-in-the-loop use
+=======
+# ai-compliance-agent
+>>>>>>> bf9572be0165e135e24e88ca14d55b71a98411aa
