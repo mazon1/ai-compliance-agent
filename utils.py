@@ -1,3 +1,4 @@
+import io
 from fpdf import FPDF
 
 def clean_text(text):
@@ -8,12 +9,12 @@ def clean_text(text):
 
 def generate_pdf_bytes(result: dict) -> bytes:
     pdf = FPDF()
-    pdf.set_margins(15, 15, 15)  # left, top, right
+    pdf.set_margins(15, 15, 15)
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.set_font("Arial", size=11)
 
-    W = 180  # usable width with 15mm margins on A4
+    W = 180
 
     # -------------------------
     # HEADER
@@ -71,4 +72,6 @@ def generate_pdf_bytes(result: dict) -> bytes:
     # -------------------------
     # OUTPUT
     # -------------------------
-    return pdf.output(dest="S").encode("latin-1")
+    buffer = io.BytesIO()
+    pdf.output(buffer)
+    return buffer.getvalue()
