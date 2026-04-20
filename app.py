@@ -40,7 +40,7 @@ with right:
     st.subheader("2) Settings")
     model_name = st.selectbox(
         "Claude model",
-        options=["claude-3-5-sonnet-20241022", "claude-3-haiku-20240307"],
+        options=["claude-sonnet-4-20250514", "claude-haiku-4-5-20251001"],
         index=0
     )
     strict_mode = st.checkbox("Flag vague language aggressively", value=True)
@@ -70,13 +70,17 @@ if analyze:
         st.stop()
 
     with st.spinner("Reviewing document against OSHA-style requirements..."):
-        result = analyze_document(
-            document_text=doc_text,
-            api_key=api_key,
-            model_name=model_name,
-            strict_mode=strict_mode,
-            source_name=source_name
-        )
+        try:
+            result = analyze_document(
+                document_text=doc_text,
+                api_key=api_key,
+                model_name=model_name,
+                strict_mode=strict_mode,
+                source_name=source_name
+            )
+        except Exception as e:
+            st.error(f"Analysis failed: {e}")
+            st.stop()
 
     st.success("Analysis complete.")
     st.subheader("3) Compliance Report")
