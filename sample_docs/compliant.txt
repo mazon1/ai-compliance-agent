@@ -1,0 +1,21 @@
+Portable Fire Extinguisher Inspection Procedure
+
+1. Purpose
+This procedure establishes requirements for portable fire extinguisher inspection and maintenance.
+
+2. Monthly Inspection
+Each extinguisher shall be visually inspected monthly to verify that:
+- it is in its designated location
+- it is visible and accessible
+- the pressure gauge is in the operable range
+- the pull pin and tamper seal are intact
+- there is no visible damage, corrosion, leakage, or blocked nozzle
+
+3. Annual Maintenance
+Each extinguisher shall receive annual maintenance by a qualified person.
+
+4. Documentation
+A maintenance tag or inspection log shall be maintained. Annual maintenance records shall be retained for one year after the last entry or for the life of the shell, whichever is less.
+
+5. Corrective Action
+Any extinguisher found damaged, discharged, missing, or obstructed shall be removed from service, replaced or repaired, and documented immediately.
