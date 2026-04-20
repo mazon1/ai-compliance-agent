@@ -1,4 +1,3 @@
-import os
 import streamlit as st
 from analyzer import analyze_document
 from utils import generate_pdf_bytes
@@ -27,27 +26,39 @@ with st.expander("What this prototype checks", expanded=False):
 
 left, right = st.columns([1.2, 1])
 
+# -------------------------
+# INPUT SECTION
+# -------------------------
 with left:
     st.subheader("1) Provide a safety procedure")
+    
     upload = st.file_uploader("Upload a .txt or .md file", type=["txt", "md"])
+    
     pasted = st.text_area(
         "Or paste the procedure text",
         height=320,
         placeholder="Paste a fire extinguisher inspection or maintenance procedure here..."
     )
 
+# -------------------------
+# SETTINGS
+# -------------------------
 with right:
     st.subheader("2) Settings")
+    
     model_name = st.selectbox(
-        "Claude model",
-        options=["claude-sonnet-4-20250514", "claude-haiku-4-5-20251001"],
+        "Model",
+        options=["gemini-1.5-flash"],
         index=0
     )
+    
     strict_mode = st.checkbox("Flag vague language aggressively", value=True)
-    st.info(
-        "Tip: keep the scope narrow. This prototype is designed for portable fire extinguisher procedures."
-    )
+    
+    st.info("Tip: Keep scope narrow. This prototype is designed for extinguisher procedures.")
 
+# -------------------------
+# DOCUMENT HANDLING
+# -------------------------
 doc_text = ""
 source_name = "pasted_text"
 
@@ -57,23 +68,29 @@ if upload is not None:
 elif pasted.strip():
     doc_text = pasted.strip()
 
+# -------------------------
+# ACTION BUTTON
+# -------------------------
 analyze = st.button("Analyze Compliance", type="primary", use_container_width=True)
 
 if analyze:
-    api_key = os.getenv("ANTHROPIC_API_KEY", "")
-    if not api_key:
-        st.error("Missing ANTHROPIC_API_KEY. Set it in your environment or Streamlit secrets before running.")
+
+    # 🔑 Check for API key in Streamlit secrets
+    if "GOOGLE_API_KEY" not in st.secrets:
+        st.error("Missing GOOGLE_API_KEY in Streamlit secrets.")
         st.stop()
 
     if not doc_text.strip():
         st.warning("Please upload or paste a procedure before analyzing.")
         st.stop()
 
+    # -------------------------
+    # RUN ANALYSIS
+    # -------------------------
     with st.spinner("Reviewing document against OSHA-style requirements..."):
         try:
             result = analyze_document(
                 document_text=doc_text,
-                api_key=api_key,
                 model_name=model_name,
                 strict_mode=strict_mode,
                 source_name=source_name
@@ -82,6 +99,9 @@ if analyze:
             st.error(f"Analysis failed: {e}")
             st.stop()
 
+    # -------------------------
+    # DISPLAY OUTPUT
+    # -------------------------
     st.success("Analysis complete.")
     st.subheader("3) Compliance Report")
 
@@ -89,49 +109,55 @@ if analyze:
     st.markdown(f"**Overall status:** {result['overall_status']}")
     st.markdown(f"**Summary:** {result['summary']}")
 
+    # -------------------------
+    # ISSUES
+    # -------------------------
     if result["issues"]:
         st.markdown("### Findings")
+
         for idx, issue in enumerate(result["issues"], start=1):
             severity = issue.get("severity", "Medium")
+
+            block = (
+                f"**{idx}. {issue.get('title','Issue')}**  \n"
+                f"**Severity:** {severity}  \n"
+                f"**Why it matters:** {issue.get('why_it_matters','')}  \n"
+                f"**Recommendation:** {issue.get('recommendation','')}  \n"
+                f"**Evidence:** {issue.get('evidence','Not found')}"
+            )
+
             if severity.lower() == "high":
-                st.error(
-                    f"**{idx}. {issue.get('title','Issue')}**  \n"
-                    f"**Severity:** {severity}  \n"
-                    f"**Why it matters:** {issue.get('why_it_matters','')}  \n"
-                    f"**Recommendation:** {issue.get('recommendation','')}  \n"
-                    f"**Evidence from document:** {issue.get('evidence','Not found')}"
-                )
+                st.error(block)
             elif severity.lower() == "medium":
-                st.warning(
-                    f"**{idx}. {issue.get('title','Issue')}**  \n"
-                    f"**Severity:** {severity}  \n"
-                    f"**Why it matters:** {issue.get('why_it_matters','')}  \n"
-                    f"**Recommendation:** {issue.get('recommendation','')}  \n"
-                    f"**Evidence from document:** {issue.get('evidence','Not found')}"
-                )
+                st.warning(block)
             else:
-                st.info(
-                    f"**{idx}. {issue.get('title','Issue')}**  \n"
-                    f"**Severity:** {severity}  \n"
-                    f"**Why it matters:** {issue.get('why_it_matters','')}  \n"
-                    f"**Recommendation:** {issue.get('recommendation','')}  \n"
-                    f"**Evidence from document:** {issue.get('evidence','Not found')}"
-                )
+                st.info(block)
     else:
         st.success("No major issues were flagged for the scoped rule set.")
 
+    # -------------------------
+    # STRENGTHS
+    # -------------------------
     if result.get("strengths"):
         st.markdown("### What the document does well")
         for item in result["strengths"]:
             st.markdown(f"- {item}")
 
+    # -------------------------
+    # RULES
+    # -------------------------
     if result.get("rules_considered"):
-        with st.expander("Rules considered", expanded=False):
+        with st.expander("Rules considered"):
             for rule in result["rules_considered"]:
                 st.markdown(f"- **{rule['id']}**: {rule['title']}")
 
+    # -------------------------
+    # DOWNLOAD
+    # -------------------------
     st.markdown("### Download report")
+    
     pdf_bytes = generate_pdf_bytes(result)
+    
     st.download_button(
         "Download PDF report",
         data=pdf_bytes,
@@ -140,5 +166,8 @@ if analyze:
         use_container_width=True
     )
 
-    with st.expander("Raw JSON output", expanded=False):
+    # -------------------------
+    # DEBUG VIEW (great for demo)
+    # -------------------------
+    with st.expander("Raw JSON output"):
         st.json(result)
