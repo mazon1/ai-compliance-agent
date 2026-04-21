@@ -142,7 +142,7 @@ in **App Secrets**
 
 - Expand to **Lockout/Tagout (OSHA 29 CFR 1910.147)**  
 - Add retrieval from live regulatory sources  
-- Support long documents via chunking  
+- Support long documents via chunking and accept PDF uploads
 - Highlight issues directly inside the document  
 - Add human-in-the-loop review workflow  
 
