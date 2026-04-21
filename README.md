@@ -5,6 +5,7 @@
 A focused AI-powered prototype that reviews a fire extinguisher procedure against a narrow set of OSHA-style requirements and produces an actionable compliance report for a non-technical safety manager.
 
 Link to v1: Deployed on Streamlit: https://ai-compliance-agent.streamlit.app/
+
 Link to v2: Deployed on Vercel: https://safety-sentinel-lime.vercel.app/
 
 ---
