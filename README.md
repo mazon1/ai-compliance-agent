@@ -148,7 +148,7 @@ in **App Secrets**
 
 ---
 
-## Positioning (for interview)
+## Positioning 
 
 This prototype demonstrates how AI can be embedded into **real safety workflows** to:
 
